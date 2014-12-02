@@ -1,0 +1,282 @@
+package ar.edu.itba.geb.compiler.java;
+
+import java_cup.runtime.Symbol;
+import ar.edu.itba.geb.compiler.java.syntaxtree.*;
+import ar.edu.itba.geb.compiler.java.visitors.*;
+
+scan with {: return lex.next_token(); :};
+
+action code {:
+:}
+
+parser code {:
+	AnalizadorLexico lex;
+	public AnalizadorSintactico(AnalizadorLexico lexx)
+	{
+		super(lexx);
+		lex = lexx;
+	}
+
+	public void syntax_error(Symbol s)
+	{
+		try
+		{
+			System.out.println("Syntax error at line: " + s.left + ", column: " + s.right + ", toString: " + s.value.toString());
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	public static void print(String s)
+	{
+		System.out.println(s);
+	}
+:};
+
+//TERMINALS
+
+terminal CLASS, PUBLIC, STATIC, VOID, MAIN;
+terminal LENGTH, STRING;
+terminal EXTENDS, RETURN;
+terminal INT, BOOL;
+terminal IF, ELSE, WHILE;
+terminal PRINT_INT, PRINT_STRING;
+terminal TRUE, FALSE;
+terminal THIS, NEW;
+terminal NULL_LITERAL;
+
+terminal AND, EQUAL, LESS_OR_EQUAL, GREATER_OR_EQUAL, LESS, GREATER, NOT_EQUAL;
+terminal ASSIGN, ADD_ASSIGN, SUB_ASSIGN, MULT_ASSIGN, DIV_ASSIGN, MOD_ASSIGN;
+terminal OR, NOT;
+terminal DIV, MOD, ADD, SUB, MULT;
+terminal ADD_OP, SUB_OP;
+terminal COMMA, COLON, SEMI, DOT;
+terminal LBRACE, RBRACE, LPARENS, RPARENS, LBRACKET, RBRACKET;
+
+terminal java.lang.String ID;
+terminal java.lang.Number NUM;
+terminal java.lang.String STRING_LITERAL;
+terminal NULL_LITERAL;
+
+//NONTERMINAL
+non terminal Goal;
+non terminal MainClass MainClass;
+non terminal ClassDecl ClassDeclaration;
+non terminal VarDecl VarDeclaration; 
+non terminal MethodDecl MethodDeclaration;
+non terminal Type Type;
+non terminal Statement Statement;
+non terminal Exp Expression; 
+
+non terminal ClassDeclList CDL; 
+non terminal VarDeclList VDL; 
+non terminal MethodDeclList MDL; 
+non terminal FormalList PDL;
+non terminal StatementList SDL;
+non terminal ExpList EDL;
+non terminal Identifier Identifier;
+
+precedence left RETURN;
+precedence left EQEQ;
+precedence left QUESTION;
+precedence left LBRACK;
+precedence left DOT;
+precedence left ANDAND, OROR;
+precedence left LT, LTEQ, GT, EQ, NOTEQ, GTEQ;
+precedence left PLUS, MINUS;
+precedence left MULT, DIV, MOD;
+
+start with Goal;
+
+Goal ::= MainClass:main CDL:cdl 
+	{: DepthFirstVisitor dfv = new DepthFirstVisitor(); 
+	Program pg = new Program(main,cdl); 
+	dfv.visit(pg); 
+	RESULT = pg; :};
+
+CDL ::= CDL:cdl ClassDeclaration:cd 
+	{: cdl.addElement(cd); 
+	RESULT = cdl; :}
+	| {: RESULT = new ClassDeclList(); :};
+
+VDL ::= VDL:vdl VarDeclaration:vd 
+	{: vdl.addElement(vd); 
+	RESULT = vdl; :}
+	| {: RESULT = new VarDeclList(); :};
+
+MDL ::= MDL:mdl MethodDeclaration:md 
+	{: mdl.addElement(md); 
+	RESULT = mdl; :}
+	| {: RESULT = new MethodDeclList(); :};
+
+PDL ::= PDL:pdl COMMA Type:ty Identifier:id 
+	{: Formal form = new Formal(ty,id); 
+	pdl.addElement(form); 
+	RESULT = pdl; :}
+	| Type:ty Identifier:id 
+	{: FormalList pdl = new FormalList(); 
+	Formal form = new Formal(ty,id); 
+	pdl.addElement(form); 
+	RESULT = pdl; :}
+	| {: RESULT = new FormalList(); :};
+
+SDL ::= Statement:stat SDL:sdl 
+	{: sdl.addElement(stat); 
+	RESULT = sdl; :}
+	| {: RESULT = new StatementList(); :};
+
+EDL ::= EDL:edl COMMA Expression:exp 
+	{: edl.addElement(exp); 
+	RESULT = edl; :}
+	| Expression:exp 
+	{: ExpList edl = new ExpList(); 
+	edl.addElement(exp); 
+	RESULT = edl; :}
+	| {: RESULT = new ExpList(); :};
+
+MainClass ::= CLASS Identifier:id LBRACE 
+	PUBLIC STATIC VOID MAIN LPAR STRING LBRACK RBRACK Identifier:idd RPAR LBRACE VDL:vdlMain SDL:sdlMain RBRACE 
+	VDL:vdl MDL:mdl 
+	RBRACE 
+	{:   RESULT = new MainClass(id, idd, vdlMain, sdlMain, vdl, mdl); :};
+
+ClassDeclaration ::=  CLASS Identifier:id EXTENDS Identifier:idd LBRACE VDL:vdl MDL:mdl  RBRACE 
+	{: RESULT = new ClassDeclExtends(id,idd,vdl,mdl); :}
+	| CLASS Identifier:id LBRACE VDL:vdl MDL:mdl RBRACE 
+	{:  RESULT = new ClassDeclSimple(id,vdl,mdl); :};
+
+VarDeclaration ::= Type:ty Identifier:id SEMI {: RESULT = new VarDecl(ty,id); :};
+
+
+
+MethodDeclaration ::= 
+
+PUBLIC Type:ty Identifier:id LPAR PDL:pdl RPAR LBRACE 
+
+VDL:vdl SDL:sdl 
+
+RETURN Expression:exp SEMI 
+
+RBRACE 
+
+{: RESULT = new MethodDecl(ty,id,pdl,vdl,sdl,exp); :};
+
+
+Type ::= INT LBRACK RBRACK {: RESULT = new IntArrayType(); :}
+
+| STRING LBRACK RBRACK {: RESULT = new StringArrayType(); :}
+
+| BOOL {: RESULT = new BooleanType(); :}
+
+| INT {: RESULT = new IntegerType(); :}
+
+| STRING {: RESULT = new StringType(); :}
+
+| Identifier:id {: RESULT = new IdentifierType(id.toString()); :};
+
+
+
+Statement ::= LBRACE SDL:sdl RBRACE {: RESULT = new Block(sdl); :}
+
+| IF LPAR Expression:exp RPAR Statement:stat ELSE Statement:statt {: RESULT = new If(exp,stat,statt); :}
+
+| WHILE LPAR Expression:exp RPAR Statement:stat {: RESULT = new While(exp,stat); :}
+
+| DO Statement:stat WHILE LPAR Expression:exp RPAR SEMI {: RESULT = new DoWhile(stat, exp); :}
+
+| PRINT LPAR Expression:exp RPAR SEMI {: RESULT = new Print(exp); :}
+
+| Identifier:id EQ Expression:exp SEMI {: RESULT = new Assign(id,exp); :}
+
+| Identifier:id MULTEQ Expression:exp SEMI {: RESULT = new AssignMult(id,exp); :}
+
+| Identifier:id DIVEQ Expression:exp SEMI {: RESULT = new AssignDiv(id,exp); :}
+
+| Identifier:id MODEQ Expression:exp SEMI {: RESULT = new AssignMod(id,exp); :}
+
+| Identifier:id PLUSEQ Expression:exp SEMI {: RESULT = new AssignPlus(id,exp); :}
+
+| Identifier:id MINUSEQ Expression:exp SEMI {: RESULT = new AssignMinus(id,exp); :}
+
+| Identifier:id LBRACK Expression:exp RBRACK EQ Expression:expp SEMI {: RESULT = new ArrayAssign(id,exp,expp); :}
+
+| Identifier:id LBRACK Expression:exp RBRACK MULTEQ Expression:expp SEMI {: RESULT = new ArrayAssignMult(id,exp,expp); :}
+
+| Identifier:id LBRACK Expression:exp RBRACK DIVEQ Expression:expp SEMI {: RESULT = new ArrayAssignDiv(id,exp,expp); :}
+
+| Identifier:id LBRACK Expression:exp RBRACK MODEQ Expression:expp SEMI {: RESULT = new ArrayAssignMod(id,exp,expp); :}
+
+| Identifier:id LBRACK Expression:exp RBRACK PLUSEQ Expression:expp SEMI {: RESULT = new ArrayAssignPlus(id,exp,expp); :}
+
+| Identifier:id LBRACK Expression:exp RBRACK MINUSEQ Expression:expp SEMI {: RESULT = new ArrayAssignMinus(id,exp,expp); :};
+
+
+
+Expression ::= Expression:exp ANDAND Expression:expp {: RESULT = new And(exp,expp); :}
+
+| Expression:exp OROR Expression:expp {: RESULT = new Or(exp,expp); :}
+
+| Expression:exp EQEQ Expression:expp {: RESULT = new Eq(exp,expp); :}
+
+| Expression:exp NOTEQ Expression:expp {: RESULT = new NotEq(exp,expp); :}
+
+| Expression:exp LT Expression:expp {: RESULT = new LessThan(exp,expp); :}
+
+| Expression:exp LTEQ Expression:expp {: RESULT = new LessEqThan(exp,expp); :}
+
+| Expression:exp GT Expression:expp {: RESULT = new GreaterThan(exp,expp); :}
+
+| Expression:exp GTEQ Expression:expp {: RESULT = new GreaterEqThan(exp,expp); :}
+
+| Expression:exp PLUS Expression:expp {: RESULT = new Plus(exp,expp); :}
+
+| Expression:exp MINUS Expression:expp {: RESULT = new Minus(exp,expp); :}
+
+| Expression:exp MULT Expression:expp {: RESULT = new Times(exp,expp); :}
+
+| Expression:exp DIV Expression:expp {: RESULT = new Div(exp,expp); :}
+
+| Expression:exp MOD Expression:expp {: RESULT = new Mod(exp,expp); :}
+
+| NOT Expression:exp {: RESULT = new Not(exp); :}
+
+| Expression:exp QUESTION Expression:expTrue COLON Expression:expFalse {: RESULT = new QuestionExpression(exp, expTrue, expFalse); :}
+
+| Expression:exp LBRACK Expression:expp RBRACK {: RESULT = new ArrayLookup(exp,expp); :}
+
+| Expression:exp DOT LENGTH {: RESULT = new ArrayLength(exp); :}
+
+| Expression:exp DOT Identifier:id LPAR EDL:edl RPAR {: RESULT = new Call(exp,id,edl); :}
+
+| INTEGER_LITERAL:imm {: RESULT = new IntegerLiteral(imm.intValue()); :}
+
+| INTEGER_LITERAL:imm PLUSPLUS {: RESULT = new PostIncrement(imm); :}
+
+| PLUSPLUS INTEGER_LITERAL:imm {: RESULT = new PreIncrement(imm); :}
+
+| INTEGER_LITERAL:imm MINUSMINUS {: RESULT = new PostDecrement(imm); :}
+
+| MINUSMINUS INTEGER_LITERAL:imm {: RESULT = new PreDecrement(imm); :}
+
+| STRING_LITERAL:str {: RESULT = new StringLiteral(str.toString()); :}
+
+| NULL_LITERAL:nil {: RESULT = new NullLiteral(null); :}
+
+| TRUE {: RESULT = new True(); :} 
+
+| FALSE {: RESULT = new False(); :}
+
+| Identifier:id {: RESULT = new IdentifierExp(id.toString()); :}
+
+| THIS {: RESULT = new This(); :}
+
+| NEW INT LBRACK Expression:exp RBRACK {: RESULT = new NewArray(exp); :}
+
+| NEW Identifier:id LPAR RPAR {: RESULT = new NewObject(id); :}
+
+| LPAR Expression:exp RPAR {: RESULT = exp; :};
+
+
+Identifier ::= IDENT:id {: RESULT = new Identifier(id.toString()); :};

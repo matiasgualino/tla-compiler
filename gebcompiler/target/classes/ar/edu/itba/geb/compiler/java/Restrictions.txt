@@ -1,0 +1,7 @@
+Las clases se declaran con class.
+La primera y SOLO la primera deber‡ contener œnicamente el mŽtodo public static void main(String[] args).
+	Si la primera clase no tiene main -> No compila.
+	Si existe m‡s de un main -> No compila.
+Las variables no pueden ser inicializadas al mismo momento en que se declaran.
+	int i; i = 0;
+	

@@ -1,0 +1,63 @@
+ /* Importamos las clases necesarias del paquete cup.jar */
+ 
+ import java_cup.runtime.*;
+ 
+ /*** Aquí ponemos el código que se usará para comenzar a parsear la entrada.*
+ /parser code {:
+ 	public static void main(String args[]) throws Exception {
+ 		// La clase Yylex es creada por el analizador léxico
+ 		// Jlex (ver sección siguiente).
+ 		new parser(new Yylex(System.in)).parse();
+ 	}
+ :}
+ 
+ /* Aquí especificamos los terminales del lenguaje. */
+ terminal MAS, MENOS, POR, DIV, PARI, PARD, FIN;
+ 
+ /*** Este terminal tiene un valor entero. Recuerda que le dábamos el valor* en el 
+ código del analizador léxico, al darle como parámetro un 
+ valor* entero al objeto Symbol.*/
+ terminal Integer NUMERO;
+ 
+ /* Lista de no terminales. */
+ non terminal expr_list, expr_part;
+ 
+ /*** Aquí están los no terminales con valor entero, que son con los que* podemos 
+ hacer cálculos, y podemos escribirlos de la forma expr_e:l* (por ejemplo, no se 
+ podría hacer expr_list:l, ya que a ese no* terminal no le damos valor.*/
+ non terminal Integer expr_e;
+ non terminal Integer expr_t;
+ non terminal Integer expr_f;
+ non terminal Integer expr_g;
+ non terminal Integer expr_h;
+ 
+ /* Aquí especificamos la precedencia de los operadores. */
+ precedence left MAS;
+ precedence left MENOS;
+ precedence left POR;
+ precedence left DIV;
+ 
+ /*** Ahora comenzamos con las reglas de producción.*/
+ /*** Estas dos reglas son nuevas. Nos sirven para encadenar varias* expresiones 
+ separadas por un ';'*/
+ expr_list ::= expr_list expr_part | expr_part;
+ expr_part ::= expr_e:e {: System.out.println("= "+e); :} FIN;
+ 
+ /* E <- E + T | T */
+ expr_e ::= expr_e:l MAS expr_t:r {: RESULT=new Integer(l.intValue() +r.intValue()); :}| 
+ 			expr_t:e {: RESULT=e; :};
+ 			
+ /* T <- T – F | F */
+ expr_t ::= expr_t:l MENOS expr_f:r {: RESULT=new Integer(l.intValue() -r.intValue()); :}| 
+ 			expr_f:e {: RESULT=e; :};
+ 			
+ /* F <- F * G | G */
+ expr_f ::= expr_f:l POR expr_g:r {: RESULT=new Integer(l.intValue() *r.intValue()); :}| 
+ 			expr_g:e {: RESULT=e; :};
+ 			
+ /* G <- G / H | H */
+ expr_g ::= expr_g:l DIV expr_h:r {: RESULT=new Integer(l.intValue() /r.intValue()); :}|
+ 			expr_h:e {: RESULT=e; :};
+ 			
+ /* H <- (E) | n */
+ expr_h ::= PARI expr_e:e PARD {: RESULT=e; :}| NUMERO:n {: RESULT=n; :};
